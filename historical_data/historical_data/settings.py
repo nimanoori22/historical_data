@@ -14,10 +14,10 @@ NEWSPIDER_MODULE = 'historical_data.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'historical_data (+http://www.yourdomain.com)'
+USER_AGENT = 'historical_data (http://www.learnster.ir)'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
@@ -62,9 +62,10 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'historical_data.pipelines.HistoricalDataPipeline': 300,
-#}
+ITEM_PIPELINES = {
+   'historical_data.pipelines.SymbolsListPipeline': 300,
+   'historical_data.pipelines.RedisPipeline': 400,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

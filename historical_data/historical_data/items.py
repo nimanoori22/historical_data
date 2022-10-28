@@ -5,8 +5,12 @@
 
 import scrapy
 
-
 class HistoricalDataItem(scrapy.Item):
     # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    symbol = scrapy.Field()
+    time_frame = scrapy.Field()
+    candles = scrapy.Field()
+
+
+class SymbolsListItem(scrapy.Item):
+    symbols = scrapy.Field()
