@@ -53,13 +53,13 @@ class GetDataSpider(scrapy.Spider):
         # get time of now without decimals
         now = int(time.time())
         # now minus 300 5min intervals
-        start = now - (300 * 5 * 60)
-        
-        my_symbols = symbols
+        start = now - (3000 * 5 * 60)
+
+        base_url = 'https://api.kucoin.com/api/v1/market/candles'
 
         urls = [
-            f'https://api.kucoin.com/api/v1/market/candles?type=5min&symbol={symbol}&startAt={start}&endAt={now}'
-            for symbol in my_symbols
+            f'{base_url}?type=5min&symbol={symbol}&startAt={start}&endAt={now}'
+            for symbol in symbols
         ]
 
         for url in urls:
