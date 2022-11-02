@@ -39,7 +39,8 @@ class GetDataSpider(scrapy.Spider):
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'historical_data.pipelines.RedisPipeline': 400
+            'historical_data.pipelines.RedisPipeline': 400,
+            'historical_data.pipelines.TADataPipeline': 500
         }
     }
 
@@ -64,7 +65,6 @@ class GetDataSpider(scrapy.Spider):
                     df = pd.read_json(data)
                     #get the second to last time
                     start_time = int(df['time'].iloc[-2])
-                    print(start_time)
                     return str(start_time)
                 else:
                     return str(start)
@@ -82,9 +82,7 @@ class GetDataSpider(scrapy.Spider):
         ]
 
         for url in urls:
-            print(url)
             yield scrapy.Request(url=url, callback=self.parse)
-            # print(url)
 
     def parse(self, response):
         url = response.url
