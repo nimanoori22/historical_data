@@ -9,6 +9,7 @@ from itemadapter import ItemAdapter
 import redis
 from .common.util import kucoin_data_to_df
 import pandas_ta as ta
+import pandas as pd
 
 
 class SymbolsListPipeline:
@@ -42,24 +43,32 @@ class RedisPipeline:
         df['low'] = df['low'].astype(float)
         df['close'] = df['close'].astype(float)
         df['volume'] = df['volume'].astype(float)
+        df['time'] = df['time'].astype(int)
         df['Trans amount'] = df['Trans amount'].astype(float)
 
-        supertrend = ta.supertrend(df['high'], df['low'], df['close'], length=10, multiplier=3)
-        ema_50 = ta.ema(df['close'], length=50)
-        ema_200 = ta.ema(df['close'], length=200)
+        #remove the last candle
+        df = df[:-1]
 
-        df['SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
-        df['SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
-        df['SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
-        df['SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
-        df['EMA_50'] = ema_50
-        df['EMA_200'] = ema_200
+        #print df info
+        # print(df.info())
 
-        # calculate the difference between the ema_50 and ema_200 in percentage
-        df['EMA_DIFF'] = abs(ema_50 - ema_200) / ((ema_50 + ema_200) / 2) * 100
-        
         key = f'{item["symbol"]}:{item["time_frame"]}'
-        self.redis.set(key, df.to_json())
+
+        if not item['first_time']:
+            data = self.redis.get(key)
+            data = data.decode('utf-8')
+            redis_df = pd.read_json(data)
+            # redis_df['time'] = redis_df['time'].dt.tz_localize('UTC')
+            #add df to redis_df if time is not in redis_df
+            df = pd.concat([redis_df, df], ignore_index=True)
+            df = df.drop_duplicates(subset='time', keep='last')
+            df = df.sort_values(by='time')
+            df = df.reset_index(drop=True)
+            df = df.to_json()
+            self.redis.set(key, df)
+        else:
+            df = df.to_json()
+            self.redis.set(key, df)
         return item
 
     

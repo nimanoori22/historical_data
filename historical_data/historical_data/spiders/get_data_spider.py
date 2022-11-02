@@ -52,26 +52,60 @@ class GetDataSpider(scrapy.Spider):
 
         # get time of now without decimals
         now = int(time.time())
-        # now minus 300 5min intervals
-        start = now - (3000 * 5 * 60)
+        # now minus 10 5min intervals
+        start = now - (1500 * 5 * 60)
+        time_frame = '5min'
+
+        def get_start_time(symbol : str, time_frame : str) -> str:
+            try:
+                if self.redis.exists(f'{symbol}:{time_frame}'):
+                    data = self.redis.get(f'{symbol}:{time_frame}')
+                    data = data.decode('utf-8')
+                    df = pd.read_json(data)
+                    #get the second to last time
+                    start_time = int(df['time'].iloc[-2])
+                    print(start_time)
+                    return str(start_time)
+                else:
+                    return str(start)
+            except Exception as e:
+                print(e, '-------------------------------------')
+                print(symbol)
+                return str(start)
+
+
 
         base_url = 'https://api.kucoin.com/api/v1/market/candles'
-
         urls = [
-            f'{base_url}?type=5min&symbol={symbol}&startAt={start}&endAt={now}'
+            f'{base_url}?type=5min&symbol={symbol}&startAt={get_start_time(symbol, time_frame)}&endAt={now}'
             for symbol in symbols
         ]
 
         for url in urls:
+            print(url)
             yield scrapy.Request(url=url, callback=self.parse)
+            # print(url)
 
     def parse(self, response):
         url = response.url
         symbol = url.split('=')[2].split('&')[0]
         time_frame = url.split('=')[1].split('&')[0]
-        data = response.json()
+        key = f'{symbol}:{time_frame}'
+        
         historical_data_item = HistoricalDataItem()
+
+        if self.redis.exists(key):
+            data = self.redis.get(key)
+            data = data.decode('utf-8')
+            if len(data) > 0:
+                historical_data_item['first_time'] = False
+            else:
+                historical_data_item['first_time'] = True
+        else:
+            historical_data_item['first_time'] = True
+        
         historical_data_item['symbol'] = symbol
         historical_data_item['time_frame'] = time_frame
+        data = response.json()
         historical_data_item['candles'] = data['data']
         yield historical_data_item

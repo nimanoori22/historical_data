@@ -19,6 +19,8 @@ USER_AGENT = 'historical_data (http://www.learnster.ir)'
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
+# LOG_ENABLED = False
+
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 

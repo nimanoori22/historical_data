@@ -10,6 +10,7 @@ class HistoricalDataItem(scrapy.Item):
     symbol = scrapy.Field()
     time_frame = scrapy.Field()
     candles = scrapy.Field()
+    first_time = scrapy.Field()
 
 
 class SymbolsListItem(scrapy.Item):
