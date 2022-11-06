@@ -10,6 +10,12 @@ import redis
 from .common.util import kucoin_data_to_df
 import pandas_ta as ta
 import pandas as pd
+from .common.util.indicators import rainbow_adaptive_rsi
+import numpy as np
+
+# 64.227.65.175
+# ssh -i ~/.ssh/id_rsa_sasa nima@64.227.65.175 -p 69
+# 16:50
 
 
 class SymbolsListPipeline:
@@ -93,15 +99,15 @@ class TADataPipeline:
         else:
             #calculate supertrend for the last 300 candles and update them
             supertrend = ta.supertrend(
-                df['high'][-300:], 
-                df['low'][-300:], 
-                df['close'][-300:], 
+                df.loc[-300:, 'high'], 
+                df.loc[-300:, 'low'], 
+                df.loc[-300:, 'close'], 
                 length=10, multiplier=3
             )
-            df['SUPERT_10_3.0'][-300:] = supertrend['SUPERT_10_3.0']
-            df['SUPERTs_10_3.0'][-300:] = supertrend['SUPERTs_10_3.0']
-            df['SUPERTd_10_3.0'][-300:] = supertrend['SUPERTd_10_3.0']
-            df['SUPERTl_10_3.0'][-300:] = supertrend['SUPERTl_10_3.0']
+            df.loc[-300:, 'SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
+            df.loc[-300:, 'SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
+            df.loc[-300:, 'SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
+            df.loc[-300:, 'SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
         
         if 'EMA_50' not in df.columns:
             ema_50 = ta.ema(df['close'], length=50)
@@ -109,18 +115,44 @@ class TADataPipeline:
             df['EMA_50'] = ema_50
             df['EMA_200'] = ema_200
         else:
-            ema_50 = ta.ema(df['close'][-300:], length=50)
-            ema_200 = ta.ema(df['close'][-300:], length=200)
-            df['EMA_50'][-300:] = ema_50
-            df['EMA_200'][-300:] = ema_200
+            ema_50 = ta.ema(df.loc[-300:, 'close'], length=50)
+            ema_200 = ta.ema(df.loc[-400:, 'close'], length=200)
+            df.loc[-300:, 'EMA_50'] = ema_50
+            df.loc[-400:, 'EMA_200'] = ema_200
         
         if 'EMA_DIFF' not in df.columns:
             # calculate the difference between the ema_50 and ema_200 in percentage
             df['EMA_DIFF'] = abs(ema_50 - ema_200) / ((ema_50 + ema_200) / 2) * 100
         else:
-            last_300_ema_50 = ta.ema(df['close'][-300:], length=50)
-            last_300_ema_200 = ta.ema(df['close'][-300:], length=200)
-            df['EMA_DIFF'][-300:] = abs(last_300_ema_50 - last_300_ema_200) / ((last_300_ema_50 + last_300_ema_200) / 2) * 100
+            last_300_ema_50 = ta.ema(df.loc[-300:, 'close'], length=50)
+            last_300_ema_200 = ta.ema(df.loc[-300:, 'close'], length=200)
+            df.loc[-300:, 'EMA_DIFF'] = abs(last_300_ema_50 - last_300_ema_200) / ((last_300_ema_50 + last_300_ema_200) / 2) * 100
+        
+        if 'trigger' not in df.columns:
+            rainbow_rsi = rainbow_adaptive_rsi(df['close'])
+            df['trigger'] = rainbow_rsi['trigger']
+            df['rsi'] = rainbow_rsi['rsi']
+        else:
+            rainbow_rsi = rainbow_adaptive_rsi(df.loc[-500:, 'close'])
+            df.loc[-300:, 'trigger'] = rainbow_rsi.loc[-300:, 'trigger']
+            df.loc[-300:, 'rsi'] = rainbow_rsi.loc[-300:, 'rsi']
+        
+        # if SUPERTd_10_3.0 is 1 and previous SUPERTd_10_3.0 is -1 set buy signal to 1
+        df['buy_signal'] = np.where(
+            (df['SUPERTd_10_3.0'] == 1) & (df['SUPERTd_10_3.0'].shift(1) == -1), 1, 0
+        )
+        # if SUPERTd_10_3.0 is -1 and previous SUPERTd_10_3.0 is 1 set sell signal to 1
+        df['sell_signal'] = np.where(
+            (df['SUPERTd_10_3.0'] == -1) & (df['SUPERTd_10_3.0'].shift(1) == 1), 1, 0
+        )
+
+        # average of rsi nad trigger
+        if 'avg_trigger_rsi' not in df.columns:
+            df['avg_trigger_rsi'] = (df['trigger'] + df['rsi']) / 2
+        else:
+            df.loc[-300:, 'avg_trigger_rsi'] = (df.loc[-300:, 'trigger'] \
+                + df.loc[-300:, 'rsi']) / 2
+        
 
         self.redis.set(key, df.to_json())
         return item
