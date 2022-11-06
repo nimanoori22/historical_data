@@ -36,7 +36,7 @@ class GetSimbolsSpider(scrapy.Spider):
 
 class GetDataSpider(scrapy.Spider):
     name = 'get_data'
-    allowed_domains = ['https://api.kucoin.com/']
+    allowed_domains = ['kucoin.com']
 
     custom_settings = {
         'ITEM_PIPELINES': {
@@ -120,17 +120,19 @@ class GetTop100Spider(scrapy.Spider):
     """
 
     name = 'get_top_100'
-    allowed_domains = ['https://api.coingecko.com/api/v3/coins/markets']
+    allowed_domains = ['coingecko.com']
     start_urls = ['https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false']
 
     custom_settings = {
         'ITEM_PIPELINES': {
-            'historical_data.pipelines.Top100Pipeline': 300
+            'historical_data.pipelines.SymbolsListPipeline': 300
         }
     }
 
     def parse(self, response):
         data = response.json()
-        SymbolsListItem = SymbolsListItem()
-        SymbolsListItem['key'] = 'top_100'
-        SymbolsListItem['symbols'] = data
+        symbols_item = SymbolsListItem()
+        symbols_item['key'] = 'top_100'
+        data = json.dumps(data)
+        symbols_item['symbols'] = data
+        yield symbols_item
