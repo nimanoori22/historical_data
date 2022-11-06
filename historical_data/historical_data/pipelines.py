@@ -13,10 +13,6 @@ import pandas as pd
 from .common.util.indicators import rainbow_adaptive_rsi
 import numpy as np
 
-# 64.227.65.175
-# ssh -i ~/.ssh/id_rsa_sasa nima@64.227.65.175 -p 69
-# 16:50
-
 
 class SymbolsListPipeline:
 
