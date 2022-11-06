@@ -29,6 +29,7 @@ class GetSimbolsSpider(scrapy.Spider):
         df = df['symbol'].tolist()
         symbols = json.dumps(df)
         symbols_item = SymbolsListItem()
+        symbols_item['key'] = 'symbols'
         symbols_item['symbols'] = symbols
         yield symbols_item
 
@@ -54,8 +55,11 @@ class GetDataSpider(scrapy.Spider):
         # get time of now without decimals
         now = int(time.time())
         # now minus 10 5min intervals
-        start = now - (1500 * 5 * 60)
-        time_frame = '5min'
+        # start = now - (1500 * 5 * 60)
+        # now minus 1500 1hour intervals
+        start = now - (1500 * 60 * 60)
+        # time_frame = '5min'
+        time_frame = '1hour'
 
         def get_start_time(symbol : str, time_frame : str) -> str:
             try:
@@ -107,3 +111,26 @@ class GetDataSpider(scrapy.Spider):
         data = response.json()
         historical_data_item['candles'] = data['data']
         yield historical_data_item
+
+
+class GetTop100Spider(scrapy.Spider):
+    
+    """
+    This spider is used to get the top 100 coins by market cap
+    """
+
+    name = 'get_top_100'
+    allowed_domains = ['https://api.coingecko.com/api/v3/coins/markets']
+    start_urls = ['https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false']
+
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'historical_data.pipelines.Top100Pipeline': 300
+        }
+    }
+
+    def parse(self, response):
+        data = response.json()
+        SymbolsListItem = SymbolsListItem()
+        SymbolsListItem['key'] = 'top_100'
+        SymbolsListItem['symbols'] = data

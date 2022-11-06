@@ -23,8 +23,9 @@ class SymbolsListPipeline:
         self.redis.close()
 
     def process_item(self, item, spider):
+        key = item['key']
         symbols = item['symbols']
-        self.redis.set('symbols', symbols)
+        self.redis.set(key, symbols)
         return item
 
 

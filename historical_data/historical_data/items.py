@@ -14,4 +14,5 @@ class HistoricalDataItem(scrapy.Item):
 
 
 class SymbolsListItem(scrapy.Item):
+    key = scrapy.Field()
     symbols = scrapy.Field()
