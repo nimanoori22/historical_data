@@ -10,7 +10,7 @@ import redis
 from .common.util import kucoin_data_to_df
 import pandas_ta as ta
 import pandas as pd
-from .common.util.indicators import rainbow_adaptive_rsi
+from .common.util.indicators import rainbow_adaptive_rsi, is_consolidating
 import numpy as np
 
 
@@ -96,15 +96,15 @@ class TADataPipeline:
         else:
             #calculate supertrend for the last 300 candles and update them
             supertrend = ta.supertrend(
-                df.loc[-300:, 'high'], 
-                df.loc[-300:, 'low'], 
-                df.loc[-300:, 'close'], 
+                df.loc[-20:, 'high'], 
+                df.loc[-20:, 'low'], 
+                df.loc[-20:, 'close'], 
                 length=10, multiplier=3
             )
-            df.loc[-300:, 'SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
-            df.loc[-300:, 'SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
-            df.loc[-300:, 'SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
-            df.loc[-300:, 'SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
+            df.loc[-20:, 'SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
+            df.loc[-20:, 'SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
+            df.loc[-20:, 'SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
+            df.loc[-20:, 'SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
         
         if 'EMA_50' not in df.columns:
             ema_50 = ta.ema(df['close'], length=50)
@@ -130,9 +130,9 @@ class TADataPipeline:
             df['trigger'] = rainbow_rsi['trigger']
             df['rsi'] = rainbow_rsi['rsi']
         else:
-            rainbow_rsi = rainbow_adaptive_rsi(df.loc[-500:, 'close'])
-            df.loc[-300:, 'trigger'] = rainbow_rsi.loc[-300:, 'trigger']
-            df.loc[-300:, 'rsi'] = rainbow_rsi.loc[-300:, 'rsi']
+            rainbow_rsi = rainbow_adaptive_rsi(df.loc[-50:, 'close'])
+            df.loc[-50:, 'trigger'] = rainbow_rsi.loc[-50:, 'trigger']
+            df.loc[-20:, 'rsi'] = rainbow_rsi.loc[-20:, 'rsi']
         
         # if SUPERTd_10_3.0 is 1 and previous SUPERTd_10_3.0 is -1 set buy signal to 1
         df['buy_signal'] = np.where(
@@ -147,8 +147,10 @@ class TADataPipeline:
         if 'avg_trigger_rsi' not in df.columns:
             df['avg_trigger_rsi'] = (df['trigger'] + df['rsi']) / 2
         else:
-            df.loc[-300:, 'avg_trigger_rsi'] = (df.loc[-300:, 'trigger'] \
-                + df.loc[-300:, 'rsi']) / 2
+            df.loc[-50:, 'avg_trigger_rsi'] = (df.loc[-50:, 'trigger'] \
+                + df.loc[-50:, 'rsi']) / 2
+        
+        df['is_consolidating'] = is_consolidating(df.loc[-20:, 'close'], 5)
         
 
         self.redis.set(key, df.to_json())

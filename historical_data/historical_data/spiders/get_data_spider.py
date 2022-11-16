@@ -45,6 +45,12 @@ class GetDataSpider(scrapy.Spider):
         }
     }
 
+
+    def __init__(self, time_frame=None, *args, **kwargs):
+        super(GetDataSpider, self).__init__(*args, **kwargs)
+        self.time_frame = time_frame
+    
+
     def start_requests(self):
         
         self.redis = redis.Redis(host='localhost', port=6379, db=0)
@@ -54,17 +60,16 @@ class GetDataSpider(scrapy.Spider):
 
         # get time of now without decimals
         now = int(time.time())
-        # now minus 10 5min intervals
-        # start = now - (1500 * 5 * 60)
-        # now minus 1500 1hour intervals
-        start = now - (1500 * 60 * 60)
-        # time_frame = '5min'
-        time_frame = '1hour'
+        start = 0
+        if self.time_frame == '5min':
+            start = now - (10 * 60 * 5)
+        elif self.time_frame == '1hour':
+            start = now - (10 * 60 * 60)
 
-        def get_start_time(symbol : str, time_frame : str) -> str:
+        def get_start_time(symbol : str) -> str:
             try:
-                if self.redis.exists(f'{symbol}:{time_frame}'):
-                    data = self.redis.get(f'{symbol}:{time_frame}')
+                if self.redis.exists(f'{symbol}:{self.time_frame}'):
+                    data = self.redis.get(f'{symbol}:{self.time_frame}')
                     data = data.decode('utf-8')
                     df = pd.read_json(data)
                     #get the second to last time
@@ -81,7 +86,7 @@ class GetDataSpider(scrapy.Spider):
 
         base_url = 'https://api.kucoin.com/api/v1/market/candles'
         urls = [
-            f'{base_url}?type=5min&symbol={symbol}&startAt={get_start_time(symbol, time_frame)}&endAt={now}'
+            f'{base_url}?type={self.time_frame}&symbol={symbol}&startAt={get_start_time(symbol)}&endAt={now}'
             for symbol in symbols
         ]
 
