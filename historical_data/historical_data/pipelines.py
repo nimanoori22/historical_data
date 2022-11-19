@@ -150,7 +150,7 @@ class TADataPipeline:
             df.loc[-50:, 'avg_trigger_rsi'] = (df.loc[-50:, 'trigger'] \
                 + df.loc[-50:, 'rsi']) / 2
         
-        df['is_consolidating'] = is_consolidating(df.loc[-20:, 'close'], 5)
+        df['is_consolidating'] = is_consolidating(df, 5)
         
 
         self.redis.set(key, df.to_json())

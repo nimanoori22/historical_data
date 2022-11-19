@@ -62,9 +62,24 @@ class GetDataSpider(scrapy.Spider):
         now = int(time.time())
         start = 0
         if self.time_frame == '5min':
-            start = now - (10 * 60 * 5)
+            start = now - (1500 * 60 * 5)
+        elif self.time_frame == '15min':
+            start = now - (1500 * 60 * 15)
+        elif self.time_frame == '30min':
+            start = now - (1500 * 60 * 30)
         elif self.time_frame == '1hour':
-            start = now - (10 * 60 * 60)
+            start = now - (1500 * 60 * 60)
+        elif self.time_frame == '4hour':
+            start = now - (1500 * 60 * 60 * 4)
+        elif self.time_frame == '1day':
+            start = now - (1500 * 60 * 60 * 24)
+        elif self.time_frame == '1week':
+            start = now - (1500 * 60 * 60 * 24 * 7)
+        elif self.time_frame == '1month':
+            start = now - (1500 * 60 * 60 * 24 * 30)
+        else:
+            raise ValueError('time_frame must be one of the following: \
+                5min, 15min, 30min, 1hour, 4hour, 1day, 1week, 1month')
 
         def get_start_time(symbol : str) -> str:
             try:
