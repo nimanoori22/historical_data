@@ -10,8 +10,9 @@ import redis
 from .common.util import kucoin_data_to_df
 import pandas_ta as ta
 import pandas as pd
-from .common.util.indicators import rainbow_adaptive_rsi, is_consolidating
+from .common.util.indicators import is_consolidating
 import numpy as np
+import json
 
 
 class SymbolsListPipeline:
@@ -26,6 +27,25 @@ class SymbolsListPipeline:
         key = item['key']
         symbols = item['symbols']
         self.redis.set(key, symbols)
+
+        if key == 'top_100':
+            symbols = self.redis.get('symbols')
+            symbols = symbols.decode('utf-8')
+            symbols = json.loads(symbols)
+            top_100 = self.redis.get('top_100')
+            top_100 = top_100.decode('utf-8')
+            top_100 = json.loads(top_100)
+
+            top_100_symbols = set(map(lambda x: x['symbol'], top_100))
+            #delete -usdt from every symbol in symbols
+            symbols = list(map(lambda x: x[:-5].lower(), symbols))
+            symbols = list(filter(lambda x: x in top_100_symbols, symbols))
+            # add -usdt to every symbol in symbols
+            symbols = list(map(lambda x: x.upper() + '-USDT', symbols))
+            print(symbols, '-'*50)
+
+            symbols = json.dumps(symbols)
+            self.redis.set('symbols', symbols)
         return item
 
 
@@ -79,78 +99,85 @@ class TADataPipeline:
         self.redis.close()
 
     def process_item(self, item, spider):
+        if item['first_time']:
+            return item
         #get data from redis
         key = f'{item["symbol"]}:{item["time_frame"]}'
         data = self.redis.get(key)
         data = data.decode('utf-8')
         df = pd.read_json(data)
-
-        if 'SUPERT_10_3.0' not in df.columns:
-            supertrend = ta.supertrend(
-                df['high'], df['low'], df['close'], length=10, multiplier=3
-            )
-            df['SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
-            df['SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
-            df['SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
-            df['SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
-        else:
-            #calculate supertrend for the last 300 candles and update them
-            supertrend = ta.supertrend(
-                df.loc[-20:, 'high'], 
-                df.loc[-20:, 'low'], 
-                df.loc[-20:, 'close'], 
-                length=10, multiplier=3
-            )
-            df.loc[-20:, 'SUPERT_10_3.0'] = supertrend['SUPERT_10_3.0']
-            df.loc[-20:, 'SUPERTs_10_3.0'] = supertrend['SUPERTs_10_3.0']
-            df.loc[-20:, 'SUPERTd_10_3.0'] = supertrend['SUPERTd_10_3.0']
-            df.loc[-20:, 'SUPERTl_10_3.0'] = supertrend['SUPERTl_10_3.0']
         
+        slice_df_20 = df[-20:]
+
+        supertrend = ta.supertrend(
+            slice_df_20['high'], 
+            slice_df_20['low'], 
+            slice_df_20['close'], 
+            length=10, multiplier=3
+        )
+        # print(supertrend, '-'*50)
+        if 'SUPERT_10_3.0' not in df.columns:
+            # create new columns
+            df['SUPERT_10_3.0'] = np.nan
+            df['SUPERTs_10_3.0'] = np.nan
+            df['SUPERTd_10_3.0'] = np.nan
+            df['SUPERTl_10_3.0'] = np.nan
+        
+        df['SUPERT_10_3.0'][-20:] = supertrend['SUPERT_10_3.0']
+        df['SUPERTs_10_3.0'][-20:] = supertrend['SUPERTs_10_3.0']
+        df['SUPERTd_10_3.0'][-20:] = supertrend['SUPERTd_10_3.0']
+        df['SUPERTl_10_3.0'][-20:] = supertrend['SUPERTl_10_3.0']
+
         if 'EMA_50' not in df.columns:
-            ema_50 = ta.ema(df['close'], length=50)
-            ema_200 = ta.ema(df['close'], length=200)
-            df['EMA_50'] = ema_50
-            df['EMA_200'] = ema_200
-        else:
-            ema_50 = ta.ema(df.loc[-300:, 'close'], length=50)
-            ema_200 = ta.ema(df.loc[-400:, 'close'], length=200)
-            df.loc[-300:, 'EMA_50'] = ema_50
-            df.loc[-400:, 'EMA_200'] = ema_200
+            # create new columns
+            df['EMA_50'] = np.nan
+        if 'EMA_200' not in df.columns:
+            # create new columns
+            df['EMA_200'] = np.nan
+        
+        slice_df_210 = df[-210:]
+
+        ema_50 = ta.ema(slice_df_210.iloc[-60:]['close'], length=50)
+        ema_200 = ta.ema(slice_df_210.iloc[-210:]['close'], length=200)
+        len_ema_50 = len(ema_50)
+        len_ema_200 = len(ema_200)
+        df['EMA_50'][-len_ema_50:] = ema_50
+        df['EMA_200'][-len_ema_200:] = ema_200
         
         if 'EMA_DIFF' not in df.columns:
-            # calculate the difference between the ema_50 and ema_200 in percentage
-            df['EMA_DIFF'] = abs(ema_50 - ema_200) / ((ema_50 + ema_200) / 2) * 100
-        else:
-            last_300_ema_50 = ta.ema(df.loc[-300:, 'close'], length=50)
-            last_300_ema_200 = ta.ema(df.loc[-300:, 'close'], length=200)
-            df.loc[-300:, 'EMA_DIFF'] = abs(last_300_ema_50 - last_300_ema_200) / ((last_300_ema_50 + last_300_ema_200) / 2) * 100
+            df['EMA_DIFF'] = np.nan
         
-        if 'trigger' not in df.columns:
-            rainbow_rsi = rainbow_adaptive_rsi(df['close'])
-            df['trigger'] = rainbow_rsi['trigger']
-            df['rsi'] = rainbow_rsi['rsi']
-        else:
-            rainbow_rsi = rainbow_adaptive_rsi(df.loc[-50:, 'close'])
-            df.loc[-50:, 'trigger'] = rainbow_rsi.loc[-50:, 'trigger']
-            df.loc[-20:, 'rsi'] = rainbow_rsi.loc[-20:, 'rsi']
+        if 'BUY_SIGNAL' not in df.columns:
+            df['BUY_SIGNAL'] = np.nan
+        if 'SELL_SIGNAL' not in df.columns:
+            df['SELL_SIGNAL'] = np.nan
         
-        # if SUPERTd_10_3.0 is 1 and previous SUPERTd_10_3.0 is -1 set buy signal to 1
-        df['buy_signal'] = np.where(
-            (df['SUPERTd_10_3.0'] == 1) & (df['SUPERTd_10_3.0'].shift(1) == -1), 1, 0
-        )
-        # if SUPERTd_10_3.0 is -1 and previous SUPERTd_10_3.0 is 1 set sell signal to 1
-        df['sell_signal'] = np.where(
-            (df['SUPERTd_10_3.0'] == -1) & (df['SUPERTd_10_3.0'].shift(1) == 1), 1, 0
-        )
+        slice_df_2 = df[-2:]
+        
+        last_ema_50 = slice_df_2.iloc[-1]['EMA_50']
+        last_ema_200 = slice_df_2.iloc[-1]['EMA_200']
 
-        # average of rsi nad trigger
-        if 'avg_trigger_rsi' not in df.columns:
-            df['avg_trigger_rsi'] = (df['trigger'] + df['rsi']) / 2
-        else:
-            df.loc[-50:, 'avg_trigger_rsi'] = (df.loc[-50:, 'trigger'] \
-                + df.loc[-50:, 'rsi']) / 2
+        ema_diff = abs(last_ema_50 - last_ema_200) / \
+            ((last_ema_50 + last_ema_200) / 2) * 100
         
-        df['is_consolidating'] = is_consolidating(df, 5)
+        df['EMA_DIFF'].iloc[-1] = ema_diff
+        
+        if slice_df_2['SUPERTd_10_3.0'].iloc[-1] == 1 \
+            and slice_df_2['SUPERTd_10_3.0'].iloc[-2] == -1:
+            df['BUY_SIGNAL'].iloc[-1] = 1
+        else:
+            df['BUY_SIGNAL'].iloc[-1] = 0
+
+        if slice_df_2['SUPERTd_10_3.0'].iloc[-1] == -1 \
+            and slice_df_2['SUPERTd_10_3.0'].iloc[-1] == 1:
+            df['SELL_SIGNAL'].iloc[-1] = 1
+        else:
+            df['SELL_SIGNAL'].iloc[-1] = 0
+        
+        if 'is_consolidating' not in df.columns:
+            df['is_consolidating'] = np.nan
+        
+        df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, 5)
         
 
         self.redis.set(key, df.to_json())
