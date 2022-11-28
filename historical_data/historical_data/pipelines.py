@@ -169,7 +169,7 @@ class TADataPipeline:
             df['BUY_SIGNAL'].iloc[-1] = 0
 
         if slice_df_2['SUPERTd_10_3.0'].iloc[-1] == -1 \
-            and slice_df_2['SUPERTd_10_3.0'].iloc[-1] == 1:
+            and slice_df_2['SUPERTd_10_3.0'].iloc[-2] == 1:
             df['SELL_SIGNAL'].iloc[-1] = 1
         else:
             df['SELL_SIGNAL'].iloc[-1] = 0
