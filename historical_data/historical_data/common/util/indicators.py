@@ -19,8 +19,15 @@ def rainbow_adaptive_rsi(
     return pd.DataFrame({'rsi': rsi, 'trigger': trigger})
 
 
-def is_consolidating(df, percentage=2):
-    recent_candlesticks = df[-15:]
+def is_consolidating(df, rows: int, percentage=2) -> bool:
+
+    """
+    df: dataframe
+    rows: number of rows to check. a negative number will check the last n rows
+    percentage: percentage of the range to check
+    """
+
+    recent_candlesticks = df[rows:]
     
     max_close = recent_candlesticks['close'].max()
     min_close = recent_candlesticks['close'].min()
@@ -32,10 +39,10 @@ def is_consolidating(df, percentage=2):
     return False
 
 
-def is_breaking_out(df, percentage=2.5):
+def is_breaking_out(df, rows:int, percentage=2.5):
     last_close = df[-1:]['close'].values[0]
 
-    if is_consolidating(df[:-1], percentage=percentage):
+    if is_consolidating(df[:-1], rows, percentage=percentage):
         recent_closes = df[-16:-1]
 
         if last_close > recent_closes['close'].max():

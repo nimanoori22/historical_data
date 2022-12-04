@@ -10,7 +10,7 @@ import redis
 from .common.util import kucoin_data_to_df
 import pandas_ta as ta
 import pandas as pd
-from .common.util.indicators import is_consolidating
+from .common.util.indicators import is_consolidating, is_breaking_out
 import numpy as np
 import json
 
@@ -177,8 +177,18 @@ class TADataPipeline:
         if 'is_consolidating' not in df.columns:
             df['is_consolidating'] = np.nan
         
-        df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, 5)
+        if item['time_frame'] == '5min':
+            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -20, 5)
+        elif item['time_frame'] == '1hour':
+            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -15, percentage=5)
+
+        if 'is_breaking_out' not in df.columns:
+            df['is_breaking_out'] = np.nan
         
+        if item['time_frame'] == '5min':
+            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -20, 5)
+        elif item['time_frame'] == '1hour':
+            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -15, percentage=5)
 
         self.redis.set(key, df.to_json())
         return item
