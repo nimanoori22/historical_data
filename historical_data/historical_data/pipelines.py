@@ -115,6 +115,28 @@ class TADataPipeline:
             slice_df_20['close'], 
             length=10, multiplier=3
         )
+
+        atr = ta.atr(
+            slice_df_20['high'], 
+            slice_df_20['low'], 
+            slice_df_20['close'], 
+            length=14,
+            mamode='ema'
+        )
+
+        rsi = ta.rsi(
+            slice_df_20['close'], 
+            length=14, 
+        )
+
+        if 'atr' not in df.columns:
+            df['atr'] = np.nan
+        df['atr'][-20:] = atr
+
+        if 'rsi' not in df.columns:
+            df['rsi'] = np.nan
+        df['rsi'][-20:] = rsi
+
         # print(supertrend, '-'*50)
         if 'SUPERT_10_3.0' not in df.columns:
             # create new columns
