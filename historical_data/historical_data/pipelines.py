@@ -129,12 +129,12 @@ class TADataPipeline:
             length=14, 
         )
         rsi_25 = ta.rsi(
-            df[-30:]['close'],
+            df['close'][-50:],
             length=25, 
         )
         rsi_100 = ta.rsi(
-            df[-120:]['close'],          
-            length=100, 
+            df['close'][-150],          
+            length=100,
         )
 
         if 'atr' not in df.columns:
