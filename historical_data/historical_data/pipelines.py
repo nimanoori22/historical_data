@@ -133,7 +133,7 @@ class TADataPipeline:
             length=25, 
         )
         rsi_100 = ta.rsi(
-            df['close'][-150],          
+            df['close'][-150:],          
             length=100,
         )
 
