@@ -230,7 +230,9 @@ class TADataPipeline:
             df['is_consolidating'] = np.nan
         
         if item['time_frame'] == '5min':
-            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -20, 3)
+            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -20, percentage=2)
+        elif item['time_frame'] == '15min':
+            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -15, percentage=3)
         elif item['time_frame'] == '1hour':
             df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -15, percentage=5)
 
@@ -238,7 +240,9 @@ class TADataPipeline:
             df['is_breaking_out'] = np.nan
         
         if item['time_frame'] == '5min':
-            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -20, 3)
+            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -20, 2.5)
+        elif item['time_frame'] == '15min':
+            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -15, percentage=3)
         elif item['time_frame'] == '1hour':
             df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -15, percentage=5)
 
