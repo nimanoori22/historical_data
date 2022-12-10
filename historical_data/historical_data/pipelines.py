@@ -128,6 +128,14 @@ class TADataPipeline:
             slice_df_20['close'], 
             length=14, 
         )
+        rsi_25 = ta.rsi(
+            df[-30:]['close'],
+            length=25, 
+        )
+        rsi_100 = ta.rsi(
+            df[-120:]['close'],          
+            length=100, 
+        )
 
         if 'atr' not in df.columns:
             df['atr'] = np.nan
@@ -136,6 +144,19 @@ class TADataPipeline:
         if 'rsi' not in df.columns:
             df['rsi'] = np.nan
         df['rsi'][-20:] = rsi
+
+        if 'rsi_25' not in df.columns:
+            df['rsi_25'] = np.nan
+        df['rsi_25'][-20:] = rsi_25[-20:]
+
+        if 'rsi_100' not in df.columns:
+            df['rsi_100'] = np.nan
+        df['rsi_100'][-20:] = rsi_100[-20:]
+
+        if 'rsi_25_100_cross' not in df.columns:
+            df['rsi_25_100_cross'] = np.nan
+        cross = ta.cross(rsi_25[-20:], rsi_100[-20:])
+        df['rsi_25_100_cross'][-20:] = cross
 
         # print(supertrend, '-'*50)
         if 'SUPERT_10_3.0' not in df.columns:
@@ -174,6 +195,9 @@ class TADataPipeline:
         if 'SELL_SIGNAL' not in df.columns:
             df['SELL_SIGNAL'] = np.nan
         
+        if 'rsi_signal' not in df.columns:
+            df['rsi_signal'] = np.nan
+        
         slice_df_2 = df[-2:]
         
         last_ema_50 = slice_df_2.iloc[-1]['EMA_50']
@@ -195,12 +219,18 @@ class TADataPipeline:
             df['SELL_SIGNAL'].iloc[-1] = 1
         else:
             df['SELL_SIGNAL'].iloc[-1] = 0
+
+        if slice_df_2['rsi_25_100_cross'].iloc[-1] == 1 \
+            and slice_df_2['rsi_25_100_cross'].iloc[-2] == 0:
+            df['rsi_signal'].iloc[-1] = 1
+        else:
+            df['rsi_signal'].iloc[-1] = 0
         
         if 'is_consolidating' not in df.columns:
             df['is_consolidating'] = np.nan
         
         if item['time_frame'] == '5min':
-            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -20, 5)
+            df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -20, 3)
         elif item['time_frame'] == '1hour':
             df['is_consolidating'].iloc[-1] = is_consolidating(slice_df_20, -15, percentage=5)
 
@@ -208,7 +238,7 @@ class TADataPipeline:
             df['is_breaking_out'] = np.nan
         
         if item['time_frame'] == '5min':
-            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -20, 5)
+            df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -20, 3)
         elif item['time_frame'] == '1hour':
             df['is_breaking_out'].iloc[-1] = is_breaking_out(slice_df_20, -15, percentage=5)
 
